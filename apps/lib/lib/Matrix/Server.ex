@@ -1,7 +1,7 @@
 alias MatrixSDK.Client
-alias Bot.Matrix.Scraper
+alias Lib.Matrix.Scraper
 
-defmodule Bot.Matrix.Server do
+defmodule Lib.Matrix.Server do
   use GenServer
   require Logger
 

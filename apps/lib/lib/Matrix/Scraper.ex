@@ -1,8 +1,8 @@
 alias MatrixSDK.Client
 alias MatrixSDK.Client.Request
-alias Bot.Matrix.Server
+alias Lib.Matrix.Server
 
-defmodule Bot.Matrix.Scraper do
+defmodule Lib.Matrix.Scraper do
   use Task, restart: :permanent, id: __MODULE__
   require Logger
 
@@ -48,7 +48,7 @@ defmodule Bot.Matrix.Scraper do
 
   # MARK: - Private functions
   defp get_server_pid() do
-    pid = GenServer.whereis(Bot.Matrix.Server)
+    pid = GenServer.whereis(Lib.Matrix.Server)
 
     if pid == nil do
       Logger.debug("sleeping 500ms")
