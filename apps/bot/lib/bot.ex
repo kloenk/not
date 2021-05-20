@@ -22,13 +22,13 @@ defmodule Bot do
 
     token = response.body["access_token"]
     room = "#thisisatestroom:petabyte.dev"
-    #room = "#thisisntatestroom:petabyte.dev"
-    #room = "#elixirsdktest:matrix.org"
+    # room = "#thisisntatestroom:petabyte.dev"
+    # room = "#elixirsdktest:matrix.org"
 
     Logger.info("Joining the #{room} room...")
-    #{:ok, room_id} =
+    # {:ok, room_id} =
 
-    {:ok, response } = join_room(room, token, server)
+    {:ok, response} = join_room(room, token, server)
     room_id = response.body["room_id"]
 
     {:ok, response} =
@@ -51,11 +51,12 @@ defmodule Bot do
       |> Request.join_room(token, room)
       |> Client.do_request()
 
-
     case response.body["errcode"] do
       nil ->
         {:ok, response}
-      _ -> {:error, response.body}
+
+      _ ->
+        {:error, response.body}
     end
   end
 
@@ -65,12 +66,13 @@ defmodule Bot do
     {:ok, response} =
       server
       |> Request.sync(token, params)
-      |> Client.do_request
+      |> Client.do_request()
 
     IO.inspect(response.body["rooms"]["join"][room_id])
 
     sync_loop(room_id, token, server, response.body["next_batch"])
   end
+
   @moduledoc """
   Documentation for `Bot`.
   """
