@@ -9,15 +9,15 @@ defmodule Bot.Matrix.Server do
   @errcode "errcode"
   @error "error"
 
-  def start_link(_) do
-    GenServer.start_link(__MODULE__, nil)
+  def start_link(pids \\ []) do
+    GenServer.start_link(__MODULE__, pids)
   end
 
-  @spec init(map() | nil):: {:ok, %{admins: nil | list(binary()), rooms: nil | list(binary), token: binary()}}
+  @spec init(map() | list(pid())):: {:ok, %{admins: nil | list(binary()), rooms: nil | list(binary()), token: binary(), pids: list(pid())}}
   @impl true
-  def init(data \\ nil)
+  def init(data \\ [])
 
-  def init(data) when data != nil do
+  def init(data) when is_map(data) do
     server = data[:server]
     server = if server == nil, do: @default_server, else: server
 
@@ -40,11 +40,12 @@ defmodule Bot.Matrix.Server do
     {:ok, %{
       token: token,
       rooms: data[:rooms],
-      admins: data[:admins]
+      admins: data[:admins],
+      pids: data[:pids]
     }}
   end
 
-  def init(_data) do
+  def init(data) when is_list(data) do
     config = Application.fetch_env!(:bot, :login)
 
     login = case config[:type] do
@@ -56,14 +57,45 @@ defmodule Bot.Matrix.Server do
       server: config[:server],
       login: login,
       rooms: config[:rooms],
-      admins: config[:admins]
+      admins: config[:admins],
+      pids: data
     })
+  end
+
+  @spec subscribe(pid()) :: pid()
+  def subscribe(pid) do
+    GenServer.cast(__MODULE__, {:add_pid, pid})
+    pid
+  end
+
+  def unsubscribe(pid) do
+    GenServer.call(__MODULE__, {:remove_pid, pid})
   end
 
   # MARK: - Implementation
   @impl true
+  def handle_call({:remove_pid, pid}, _from, state) do
+    new_pids = state[:pids]
+      |> Enum.filter( &(&1 != pid) )
+
+    state = Map.put(state, :pids, new_pids)
+
+    {:reply, pid, state}
+  end
+
+  @impl true
+  def handle_cast({:add_pid, pid}, state) do
+    new_pids = [ pid | state[:pids] ]
+
+    state = Map.put(state, :pids, new_pids)
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_info({:sync, tesla}, state) do
     Logger.debug("got sync")
+    send_sync(state[:pids], tesla)
     IO.inspect(tesla.body["rooms"])
 
     {:noreply, state}
@@ -89,5 +121,17 @@ defmodule Bot.Matrix.Server do
     send(pid, {:sync, response})
 
     sync(pid, token, server, response.body["next_batch"])
+  end
+
+
+  @spec send_sync(list(pid()), Tesla.Env):: nil
+  defp send_sync([head | tail], sync) do
+    send(head, {:send_sync, sync})
+
+    send_sync(tail, sync)
+  end
+
+  defp send_sync([], _sync) do
+    nil
   end
 end
