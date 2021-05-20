@@ -1,0 +1,8 @@
+import Config
+
+config :bot, :login,
+  server: "https://matrix.petabyte.dev",
+  type: :password,
+  username: "username",
+  password: "password",
+  admins: ["@kloenk:petabyte.dev"]

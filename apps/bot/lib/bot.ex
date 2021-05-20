@@ -12,7 +12,7 @@ defmodule Bot do
 
     auth = Client.Auth.login_user("kloenk_masui_test", "zafBup-xisxuz-nipxu8")
 
-    {:ok, response} = 
+    {:ok, response} =
       server
       |> Request.login(auth)
       |> Client.do_request()
@@ -26,7 +26,7 @@ defmodule Bot do
     #room = "#elixirsdktest:matrix.org"
 
     Logger.info("Joining the #{room} room...")
-    #{:ok, room_id} = 
+    #{:ok, room_id} =
 
     {:ok, response } = join_room(room, token, server)
     room_id = response.body["room_id"]
