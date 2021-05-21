@@ -24,8 +24,29 @@ defmodule Lib.Matrix.Server do
       config
       |> Map.put(:token, token)
 
+    config = resolve_rooms(config)
+
     {:ok, config}
   end
+
+  def get_server_pid() do
+    pid = GenServer.whereis(__MODULE__)
+
+    if pid == nil do
+      Logger.debug("sleeping 500ms")
+      :timer.sleep(500)
+      get_server_pid()
+    else
+      pid
+    end
+  end
+
+  def wait_for_server do
+    get_server_pid()
+    true
+  end
+
+  # Mark: - GenServer Calls
 
   @spec subscribe(pid()) :: pid()
   def subscribe(pid \\ self()) do
@@ -51,6 +72,14 @@ defmodule Lib.Matrix.Server do
 
   def get_token do
     GenServer.call(__MODULE__, {:get_token})
+  end
+
+  def get_rooms do
+    GenServer.call(__MODULE__, {:get_rooms})
+  end
+
+  def send_reply(room, message, html) do
+    GenServer.cast(__MODULE__, {:reply, room, message, html})
   end
 
   # MARK: - Implementation
@@ -86,10 +115,35 @@ defmodule Lib.Matrix.Server do
   end
 
   @impl true
+  def handle_call({:get_rooms}, _from, state) do
+    {:reply, state[:rooms], state}
+  end
+
+  @impl true
   def handle_cast({:add_pid, pid}, state) do
     new_pids = [pid | state[:pids]]
 
     state = Map.put(state, :pids, new_pids)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:reply, room, message, html}, state) do
+    event = Client.RoomEvent.message(room, :text, message, UUID.uuid1())
+
+    content = %{
+      "body" => message,
+      "format" => "org.matrix.custom.html",
+      "formatted_body" => html,
+      "msgtype" => "m.text"
+    }
+
+    # event.content = content
+    event = Map.put(event, :content, content)
+
+    Client.Request.send_room_event(state[:server], state[:token], event)
+    |> Client.do_request()
 
     {:noreply, state}
   end
@@ -113,6 +167,39 @@ defmodule Lib.Matrix.Server do
   defp send_sync([], _sync) do
     nil
   end
+
+  defp resolve_rooms(config) when is_map(config) do
+    rooms = config[:rooms]
+
+    config = Map.put(config, :rooms, %{})
+    resolve_rooms(rooms, config)
+  end
+
+  defp resolve_rooms([room | tail], config) when is_binary(room) and is_map(config) do
+    id = Scraper.get_room_id(room, config[:token], config[:server])
+
+    rooms = config[:rooms]
+
+    rooms =
+      case id do
+        {:ok, id} ->
+          Map.put(rooms, id, room)
+
+        {:error, err} when is_map(err) ->
+          Logger.error("error resolving room: #{err["errcode"]} (#{err["error"]})")
+          rooms
+
+        {:error, err} ->
+          Logger.error("error resolving room: #{inspect(err)}")
+          rooms
+      end
+
+    config = resolve_rooms(tail, config)
+    Map.put(config, :rooms, rooms)
+  end
+
+  defp resolve_rooms([], config), do: config
+  defp resolve_rooms(room, config) when room == nil, do: config
 
   defp read_config(pids) when is_list(pids) do
     read_config(%{pids: pids})

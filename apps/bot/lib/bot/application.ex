@@ -11,7 +11,8 @@ defmodule Bot.Application do
       # Starts a worker by calling: Bot.Worker.start_link(arg)
       # {Bot.Worker, arg}
       {Lib.Matrix.Scraper, nil},
-      {Lib.Matrix.Server, []}
+      {Lib.Matrix.Server, []},
+      {Karma.Application, nil}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

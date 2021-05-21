@@ -17,7 +17,7 @@ defmodule Lib.Matrix.Scraper do
   end
 
   def run(pid \\ nil) when pid == nil or is_pid(pid) do
-    pid = if pid != nil, do: pid, else: pid = get_server_pid()
+    pid = if pid != nil, do: pid, else: pid = Server.get_server_pid()
 
     sync(pid, Server.get_token(), Server.get_server())
   end
@@ -35,6 +35,22 @@ defmodule Lib.Matrix.Scraper do
     response.body["access_token"]
   end
 
+  def get_room_id(room, token, server \\ nil) when token != nil do
+    response =
+      server
+      |> default_server()
+      |> Request.join_room(token, room)
+      |> Client.do_request()
+
+    case response do
+      {:ok, response} ->
+        if error?(response), do: {:error, response.body}, else: {:ok, response.body["room_id"]}
+
+      _ ->
+        response
+    end
+  end
+
   @spec default_server(nil | binary()) :: binary()
   def default_server(server \\ nil)
 
@@ -47,19 +63,6 @@ defmodule Lib.Matrix.Scraper do
   end
 
   # MARK: - Private functions
-  defp get_server_pid() do
-    pid = GenServer.whereis(Lib.Matrix.Server)
-
-    if pid == nil do
-      Logger.debug("sleeping 500ms")
-      :timer.sleep(500)
-      get_server_pid()
-    else
-      Logger.debug("found pid")
-      pid
-    end
-  end
-
   # Returns true if tesla.body contains an @errcode
   defp error?(tesla) do
     case tesla.body[@errcode] do
