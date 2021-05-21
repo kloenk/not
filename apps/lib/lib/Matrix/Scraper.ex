@@ -44,7 +44,7 @@ defmodule Lib.Matrix.Scraper do
 
     case response do
       {:ok, response} ->
-        if error?(response), do: {:error, response.body}, else: {:ok, response.body["room_id"]}
+        if error?(response), do: {:ok, room}, else: {:ok, response.body["room_id"]}
 
       _ ->
         response

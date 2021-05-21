@@ -16,6 +16,14 @@ defmodule Karma.MemoryStore do
 
   def init(state) when state == nil, do: init()
 
+  def export() do
+    GenServer.call(__MODULE__, :export)
+  end
+
+  def import(new) when is_map(new) do
+    GenServer.call(__MODULE__, {:import, new})
+  end
+
   @impl true
   def handle_call({:store, action, {_name, name_id}, {room, _room_id}}, _from, state) do
     room_store = Map.get(state, room, %{})
@@ -30,5 +38,15 @@ defmodule Karma.MemoryStore do
     state = Map.put(state, room, room_store)
 
     {:reply, karma, state}
+  end
+
+  @impl true
+  def handle_call(:export, _from, state) do
+    {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call({:import, new_state}, _from, state) when is_map(new_state) do
+    {:reply, state, new_state}
   end
 end

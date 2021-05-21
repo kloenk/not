@@ -50,11 +50,17 @@ defmodule Karma do
   end
 
   defp parse_event([event | tail], room) when is_map(event) do
-    case event["type"] do
-      "m.room.message" -> parse_message(event["content"], room)
-      "m.reaction" -> parse_reaction(event, room)
-      # "m.room.redaction" -> parse_redaction(event, room)
-      _ -> Logger.debug("unknown type: #{event["type"]}, room: #{inspect(room)}")
+    {room_name, room_id} = room
+
+    if room_name != nil do
+      case event["type"] do
+        "m.room.message" -> parse_message(event["content"], room)
+        "m.reaction" -> parse_reaction(event, room)
+        # "m.room.redaction" -> parse_redaction(event, room)
+        _ -> Logger.debug("unknown type: #{event["type"]}, room: #{inspect(room)}")
+      end
+    else
+      Logger.debug("not parsing events for room #{room_id}")
     end
 
     parse_event(tail, room)
@@ -89,10 +95,15 @@ defmodule Karma do
     {_room_name, room_id} = room
     html = content["formatted_body"]
     res = Regex.named_captures(@html_matcher, html)
-    karma = Karma.StoreAdapter.store(action, {res["name"], res["id"]}, room)
-    Logger.debug("#{res["name"]} has a karma of #{karma}")
 
-    Server.send_karma(karma, res["name"], res["id"], room_id)
+    if is_binary(res["name"]) && is_binary(res["id"]) do
+      karma = Karma.StoreAdapter.store(action, {res["name"], res["id"]}, room)
+      Logger.debug("#{res["name"]} has a karma of #{karma}")
+
+      Server.send_karma(karma, res["name"], res["id"], room_id)
+    else
+      Logger.warning("parsing res has failed: #{inspect(res)}")
+    end
   end
 
   defp parse_message(:plain, content, _room, _action) when is_map(content) do
@@ -150,6 +161,9 @@ defmodule Karma do
       if reaction_sender == event_sender do
         if action do
           Server.self_credit(sender_name, event_sender, room_id)
+        else
+          karma = Karma.StoreAdapter.store(action, {event_sender, event_sender}, room)
+          Server.send_karma(karma, sender_name, event_sender, room_id)
         end
       else
         karma = Karma.StoreAdapter.store(action, {event_sender, event_sender}, room)

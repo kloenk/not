@@ -7,7 +7,8 @@ defmodule Not.MixProject do
       version: "0.1.0",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      licenses: "AGPL-3.0-or-later"
+      licenses: "AGPL-3.0-or-later",
+      releases: releases()
     ]
   end
 
@@ -18,5 +19,13 @@ defmodule Not.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps do
     []
+  end
+
+  defp releases do
+    [
+      bot: [
+        applications: [bot: :permanent]
+      ]
+    ]
   end
 end

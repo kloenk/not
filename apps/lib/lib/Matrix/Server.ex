@@ -54,7 +54,9 @@ defmodule Lib.Matrix.Server do
     )
   end
 
-  def send_karma(karma, name, id, room_id) do
+  def send_karma(karma, name, id, room_id) when is_binary(name) and is_binary(id) do
+    Logger.debug("giving karma to #{name}")
+
     send_reply(
       room_id,
       "#{name} has #{karma} points",
@@ -161,7 +163,7 @@ defmodule Lib.Matrix.Server do
       "body" => message,
       "format" => "org.matrix.custom.html",
       "formatted_body" => html,
-      "msgtype" => "m.text"
+      "msgtype" => "m.notice"
     }
 
     # event.content = content
@@ -208,6 +210,7 @@ defmodule Lib.Matrix.Server do
     rooms =
       case id do
         {:ok, id} ->
+          Logger.debug("resolved room #{room} to #{id}")
           Map.put(rooms, id, room)
 
         {:error, err} when is_map(err) ->
@@ -219,8 +222,8 @@ defmodule Lib.Matrix.Server do
           rooms
       end
 
-    config = resolve_rooms(tail, config)
-    Map.put(config, :rooms, rooms)
+    config = Map.put(config, :rooms, rooms)
+    resolve_rooms(tail, config)
   end
 
   defp resolve_rooms([], config), do: config
