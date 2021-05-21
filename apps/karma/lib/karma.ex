@@ -63,7 +63,8 @@ defmodule Karma do
   defp parse_event(_, _), do: nil
 
   defp parse_message(content, room) when is_map(content) do
-    {name, _id} = room
+    {name, id} = room
+    name = if name == "", do: id, else: name
     Logger.debug("parsing message '#{content["body"]}' from room #{name}")
 
     # if String.ends_with?(content["body"], "++")
@@ -104,19 +105,20 @@ defmodule Karma do
 
     action =
       if key == "👍️" do
-        :plus
+        true
       else
         if key == "👎️" do
-          :minus
+          false
+        else
+          nil
         end
-
-        :none
       end
 
     sender = content["sender"]
+    Logger.debug("parsing reaction #{key} (#{id}) from #{sender}")
 
-    if action != :none do
-      parse_reaction(action == :plus, id, sender, room)
+    if action != nil do
+      parse_reaction(action, id, sender, room)
     else
       nil
     end
@@ -129,10 +131,12 @@ defmodule Karma do
     event =
       case Scraper.get_room_event(room_id, reaction_id, Server.get_token(), Server.get_server()) do
         {:ok, event} -> event
-        _ -> :error
+        _ -> nil
       end
 
-    if event != :error do
+    IO.inspect(event)
+
+    if event != nil do
       event_sender = event["sender"]
 
       sender_name =
@@ -141,12 +145,18 @@ defmodule Karma do
           _ -> "ERROR"
         end
 
+      Logger.debug("reaction sender is #{sender_name}")
+
       if reaction_sender == event_sender do
-        Server.self_credit(sender_name, event_sender, room_id)
+        if action do
+          Server.self_credit(sender_name, event_sender, room_id)
+        end
       else
-        karma = Karma.StoreAdapter.store(action, {"todo", event_sender}, room)
+        karma = Karma.StoreAdapter.store(action, {event_sender, event_sender}, room)
         Server.send_karma(karma, sender_name, event_sender, room_id)
       end
+    else
+      Logger.info("could not get event for reaction #{reaction_id}")
     end
   end
 

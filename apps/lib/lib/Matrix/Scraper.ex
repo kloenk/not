@@ -107,16 +107,34 @@ defmodule Lib.Matrix.Scraper do
   defp sync(pid, token, server, since \\ nil) do
     params = if since == nil, do: %{}, else: %{since: since, timeout: 1000}
 
-    {:ok, response} =
+    # {:ok, response} =
+    #  server
+    #  |> Request.sync(token, params)
+    #  |> Client.do_request()
+
+    response =
       server
       |> Request.sync(token, params)
       |> Client.do_request()
 
-    send(pid, {:sync, response})
+    response =
+      case response do
+        {:ok, data} ->
+          data
 
-    # Remove.important!!!
-    :timer.sleep(1000)
+        {:error, e} ->
+          Logger.warn("error syncing: #{inspect(e)}")
+          nil
+      end
 
-    sync(pid, token, server, response.body["next_batch"])
+    since =
+      if response != nil do
+        send(pid, {:sync, response})
+        response.body["next_batch"]
+      else
+        since
+      end
+
+    sync(pid, token, server, since)
   end
 end
