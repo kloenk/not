@@ -46,6 +46,31 @@ defmodule Lib.Matrix.Server do
     true
   end
 
+  def self_credit(name, id, room_id) do
+    send_reply(
+      room_id,
+      "#{name} is selfish",
+      "<a href=\"https://matrix.to/#/#{id}\">#{name}</a> is selfish"
+    )
+  end
+
+  def send_karma(karma, name, id, room_id) do
+    send_reply(
+      room_id,
+      "#{name} has #{karma} points",
+      "<a href=\"https://matrix.to/#/#{id}\">#{name}</a> has #{karma} points"
+    )
+  end
+
+  def resolve_name(name) do
+    profile = Scraper.get_profile(name, get_server)
+
+    case profile do
+      {:ok, profile} -> {:ok, profile["displayname"]}
+      _ -> profile
+    end
+  end
+
   # Mark: - GenServer Calls
 
   @spec subscribe(pid()) :: pid()

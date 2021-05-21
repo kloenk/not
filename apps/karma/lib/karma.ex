@@ -1,4 +1,5 @@
 alias Lib.Matrix.Server
+alias Lib.Matrix.Scraper
 
 defmodule Karma do
   use Task, restart: :permanent
@@ -51,6 +52,8 @@ defmodule Karma do
   defp parse_event([event | tail], room) when is_map(event) do
     case event["type"] do
       "m.room.message" -> parse_message(event["content"], room)
+      "m.reaction" -> parse_reaction(event, room)
+      # "m.room.redaction" -> parse_redaction(event, room)
       _ -> Logger.debug("unknown type: #{event["type"]}, room: #{inspect(room)}")
     end
 
@@ -62,7 +65,6 @@ defmodule Karma do
   defp parse_message(content, room) when is_map(content) do
     {name, _id} = room
     Logger.debug("parsing message '#{content["body"]}' from room #{name}")
-    IO.inspect(content)
 
     # if String.ends_with?(content["body"], "++")
     cond do
@@ -89,15 +91,63 @@ defmodule Karma do
     karma = Karma.StoreAdapter.store(action, {res["name"], res["id"]}, room)
     Logger.debug("#{res["name"]} has a karma of #{karma}")
 
-    Server.send_reply(
-      room_id,
-      "#{res["name"]} has #{karma} points",
-      "<a href=\"https://matrix.to/#/#{res["id"]}\">#{res["name"]}</a> has #{karma} points"
-    )
+    Server.send_karma(karma, res["name"], res["id"], room_id)
   end
 
   defp parse_message(:plain, content, _room, _action) when is_map(content) do
     Logger.warn("implement non html parsing")
+  end
+
+  defp parse_reaction(content, room) when is_map(content) do
+    id = content["content"]["m.relates_to"]["event_id"]
+    key = content["content"]["m.relates_to"]["key"]
+
+    action =
+      if key == "👍️" do
+        :plus
+      else
+        if key == "👎️" do
+          :minus
+        end
+
+        :none
+      end
+
+    sender = content["sender"]
+
+    if action != :none do
+      parse_reaction(action == :plus, id, sender, room)
+    else
+      nil
+    end
+  end
+
+  def parse_reaction(action, reaction_id, reaction_sender, room)
+      when is_boolean(action) and is_binary(reaction_id) do
+    {_room_name, room_id} = room
+
+    event =
+      case Scraper.get_room_event(room_id, reaction_id, Server.get_token(), Server.get_server()) do
+        {:ok, event} -> event
+        _ -> :error
+      end
+
+    if event != :error do
+      event_sender = event["sender"]
+
+      sender_name =
+        case Server.resolve_name(event_sender) do
+          {:ok, name} -> name
+          _ -> "ERROR"
+        end
+
+      if reaction_sender == event_sender do
+        Server.self_credit(sender_name, event_sender, room_id)
+      else
+        karma = Karma.StoreAdapter.store(action, {"todo", event_sender}, room)
+        Server.send_karma(karma, sender_name, event_sender, room_id)
+      end
+    end
   end
 
   defp parse_message_trim(content, split) do

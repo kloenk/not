@@ -51,6 +51,39 @@ defmodule Lib.Matrix.Scraper do
     end
   end
 
+  def get_room_event(room, id, token \\ Server.get_token(), server \\ Server.get_server())
+      when is_binary(room) and is_binary(id) do
+    response =
+      server
+      |> default_server()
+      |> Request.room_event(token, room, id)
+      |> Client.do_request()
+
+    case response do
+      {:ok, response} ->
+        if error?(response), do: {:error, response.body}, else: {:ok, response.body}
+
+      _ ->
+        response
+    end
+  end
+
+  def get_profile(id, server \\ Server.get_server()) when is_binary(id) do
+    response =
+      server
+      |> default_server()
+      |> Request.user_profile(id)
+      |> Client.do_request()
+
+    case response do
+      {:ok, response} ->
+        if error?(response), do: {:error, response.body}, else: {:ok, response.body}
+
+      _ ->
+        response
+    end
+  end
+
   @spec default_server(nil | binary()) :: binary()
   def default_server(server \\ nil)
 
