@@ -12,7 +12,7 @@ defmodule Bot.Application do
       # {Bot.Worker, arg}
       {Lib.Matrix.Scraper, nil},
       {Lib.Matrix.Server, []},
-      {Karma.Application, nil}
+      Karma.Supervisor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
