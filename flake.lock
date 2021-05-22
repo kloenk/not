@@ -1,0 +1,25 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1621400412,
+        "narHash": "sha256-HR7qKaWbilWdgSOSAIFWSNRQjK7QkWYFAyBdvx2gt98=",
+        "owner": "happysalada",
+        "repo": "nixpkgs",
+        "rev": "b403911ad0fe21198fd5f877157f1e8fc52645e3",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
