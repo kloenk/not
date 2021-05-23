@@ -1,4 +1,4 @@
-defmodule Karma.Supervisor do
+defmodule Karma.SqliteStore.Supervisor do
   use Supervisor
 
   @impl true
@@ -9,12 +9,8 @@ defmodule Karma.Supervisor do
   @impl true
   def init(_) do
     children = [
-      {Task.Supervisor, name: Karma.TaskSupervisor},
-      {Karma.SqliteStore.Supervisor, nil},
-
-      # {Karma.MemoryStore, nil},
-      {Karma.StoreAdapter, Karma.SqliteStore},
-      {Karma, nil}
+      Karma.SqliteStore.Repo,
+      Karma.SqliteStore
     ]
 
     opts = [strategy: :one_for_one]

@@ -28,3 +28,6 @@ config/login.exs
 
 # MacOS files
 .DS_Store
+
+# Karma store
+/karma_repo*

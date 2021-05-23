@@ -9,6 +9,11 @@
 # move said applications out of the umbrella.
 import Config
 
+config :karma, Karma.SqliteStore.Repo, database: "karma_repo.sqlite"
+
+config :karma,
+  ecto_repos: [Karma.SqliteStore.Repo]
+
 # Sample configuration:
 #
 #     config :logger, :console,

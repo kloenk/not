@@ -30,26 +30,32 @@ defmodule Karma do
   end
 
   defp parse(tesla) when tesla != nil do
-    # IO.inspect(tesla.body)
     tesla = tesla.body["rooms"]["join"]
 
     tesla =
       tesla
       |> Enum.into([])
 
-    parse_inner(tesla)
+    Task.Supervisor.async_stream_nolink(Karma.TaskSupervisor, tesla, fn v -> parse_inner(v) end,
+      ordered: false
+    )
+    |> Enum.reduce(0, fn _x, _y -> nil end)
   end
 
-  defp parse_inner(data) when data == [] do
+  defp parse_inner({name, data}) when is_binary(name) and is_map(data) do
+    events = data["timeline"]["events"]
+    name = resolve_name(name)
+
+    Task.Supervisor.async_stream_nolink(
+      Karma.TaskSupervisor,
+      events,
+      fn v -> parse_event(v, name) end,
+      ordered: false
+    )
+    |> Enum.reduce(0, fn _x, _y -> nil end)
   end
 
-  defp parse_inner([{name, data} | tail]) when is_binary(name) and is_map(data) do
-    parse_event(data["timeline"]["events"], resolve_name(name))
-
-    parse_inner(tail)
-  end
-
-  defp parse_event([event | tail], room) when is_map(event) do
+  defp parse_event(event, room) when is_map(event) do
     {room_name, room_id} = room
 
     if room_name != nil do
@@ -62,11 +68,7 @@ defmodule Karma do
     else
       Logger.debug("not parsing events for room #{room_id}")
     end
-
-    parse_event(tail, room)
   end
-
-  defp parse_event(_, _), do: nil
 
   defp parse_message(content, room) when is_map(content) do
     {name, id} = room
@@ -115,15 +117,31 @@ defmodule Karma do
     key = content["content"]["m.relates_to"]["key"]
 
     action =
-      if key == "👍️" do
-        true
-      else
-        if key == "👎️" do
-          false
-        else
-          nil
-        end
+      case key do
+        "👍️" -> true
+        "➕" -> true
+        "✅" -> true
+        "☑️" -> true
+        "✔️" -> true
+        "⬆️" -> true
+        "⬇️" -> true
+        "🔼" -> true
+        "❤️" -> true
+        "♥️" -> true
+        "🔽" -> false
+        "👎️" -> false
+        _ -> nil
       end
+
+    # if key == "👍️" || key == "➕" do
+    #  true
+    # else
+    #  if key == "👎️" do
+    #    false
+    #  else
+    #    nil
+    # end
+    # end
 
     sender = content["sender"]
     Logger.debug("parsing reaction #{key} (#{id}) from #{sender}")
