@@ -1,18 +1,15 @@
-defmodule Karma.Supervisor do
+defmodule Bot.Distri.Supervisor do
   use Supervisor
 
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
+  @impl true
   def init(_) do
     children = [
-      {Task.Supervisor, name: Karma.TaskSupervisor},
-      {Karma.SqliteStore.Supervisor, nil},
-
-      # {Karma.MemoryStore, nil},
-      {Karma.StoreAdapter, Karma.SqliteStore},
-      {Karma, nil}
+      {Bot.Distri.Connector, nil},
+      {Bot.Distri.Connector.CTask, nil}
     ]
 
     opts = [strategy: :one_for_one]

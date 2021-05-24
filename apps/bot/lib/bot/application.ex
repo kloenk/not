@@ -10,6 +10,7 @@ defmodule Bot.Application do
     children = [
       # Starts a worker by calling: Bot.Worker.start_link(arg)
       # {Bot.Worker, arg}
+      Bot.Distri.Supervisor,
       {Lib.Matrix.Scraper, nil},
       {Lib.Matrix.Server, []},
       Karma.Supervisor

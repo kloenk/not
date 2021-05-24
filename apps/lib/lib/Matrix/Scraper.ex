@@ -104,7 +104,9 @@ defmodule Lib.Matrix.Scraper do
     end
   end
 
-  defp sync(pid, token, server, since \\ nil) do
+  defp sync(pid, token, server, since \\ nil, disable \\ true)
+
+  defp sync(pid, token, server, since, false) do
     params = if since == nil, do: %{}, else: %{since: since, timeout: 1000}
 
     # {:ok, response} =
@@ -135,6 +137,28 @@ defmodule Lib.Matrix.Scraper do
         since
       end
 
-    sync(pid, token, server, since)
+    rpid = Process.whereis(Bot.Distri.Connector.CTask)
+    send(rpid, {:update_since_int, since})
+
+    receive do
+      {:disable} ->
+        sync(pid, token, server, nil, true)
+
+      {:enable, _since} ->
+        sync(pid, token, server, since, false)
+    after
+      0 ->
+        sync(pid, token, server, since, false)
+    end
+  end
+
+  defp sync(pid, token, server, since, true) do
+    receive do
+      {:enable, since} ->
+        sync(pid, token, server, since, false)
+
+      {:disable} ->
+        sync(pid, token, server, since, true)
+    end
   end
 end

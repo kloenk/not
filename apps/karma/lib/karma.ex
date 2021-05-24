@@ -20,7 +20,6 @@ defmodule Karma do
   end
 
   defp work() do
-    # TODO: send to a worker, so multiple can be worked on at the same time
     receive do
       {:send_sync, sync} when sync != nil -> parse(sync)
       {:send_sync, _sync} -> nil

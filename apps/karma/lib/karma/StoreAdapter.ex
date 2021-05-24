@@ -10,7 +10,11 @@ defmodule Karma.StoreAdapter do
   def init(state) do
     pid = GenServer.whereis(state)
 
-    if pid, do: {:ok, state}, else: {:error, :not_started}
+    if pid do
+      {:ok, %{server: state, connector: nil}}
+    else
+      {:error, :not_started}
+    end
   end
 
   # MARK: - Public interface
@@ -23,11 +27,55 @@ defmodule Karma.StoreAdapter do
     end
   end
 
+  def set({id, room, user, karma, emoji}) do
+    if GenServer.whereis(__MODULE__) != nil do
+      GenServer.cast(__MODULE__, {:set, id, room, user, karma, emoji})
+    else
+      Logger.warn("no StoreAdapter started yet")
+      0
+    end
+  end
+
+  def register_connector(pid) when is_pid(pid) do
+    GenServer.cast(__MODULE__, {:reg_connector, pid})
+  end
+
   # MARK: - Implementation
   @impl true
   # @spec handle_call({atom(), boolean(), {binary(), binary()}, {binary(), binary()}}) :: {:ok, any()}
   def handle_call({:store, action, user, room}, _from, state) do
-    reply = GenServer.call(state, {:store, action, user, room})
+    {id, reply} = GenServer.call(state[:server], {:store, action, user, room})
+
+    if state[:connector] != nil do
+      {room, _room_id} = room
+      {_name, name_id} = user
+      {}
+      send(state[:connector], {:set_out, id, room, name_id, reply, nil})
+    end
+
     {:reply, reply, state}
+  end
+
+  def handle_cast({:set, id, room, user, karma, emoji}, state) do
+    GenServer.cast(state[:server], {:set, id, room, user, karma, emoji})
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:send, node}, state) do
+    GenServer.cast(state[:server], {:send, node})
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:receive, data}, state) do
+    GenServer.cast(state[:server], {:receive, data})
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:reg_connector, pid}, state) do
+    state = Map.put(state, :connector, pid)
+    {:noreply, state}
   end
 end

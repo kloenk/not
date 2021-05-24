@@ -36,7 +36,8 @@ defmodule Karma.SqliteStore.Karma do
       inc(room, user, by)
     end
 
-    hd(find(room, user)).karma
+    reply = hd(find(room, user))
+    {reply.id, reply.karma}
   end
 
   def inc_check(room, user, by, symbol) do

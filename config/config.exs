@@ -22,4 +22,6 @@ config :karma,
 #       metadata: [:user_id]
 #
 
+config :bot, :nodes, nodes: [:first@localhost, :second@localhost, :third@localhost]
+
 import_config "login.exs"
