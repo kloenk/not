@@ -1,12 +1,13 @@
 defmodule Repl.Executor do
   require Logger
 
-  def run(:err, _args, room, _system) do
+  def run(:err, _args, room, _system, event) do
     {_room_name, room_id} = room
-    Lib.Matrix.Server.send_reply(room_id, "Error in nix expression")
+    {plain, html} = create_response_error(event, room_id)
+    Lib.Matrix.Server.send_reply(room_id, plain, html)
   end
 
-  def run(expression, args, room, system) do
+  def run(expression, args, room, system, event) do
     {_room_name, room_id} = room
 
     task = shedule_task(expression, args, system)
@@ -27,7 +28,7 @@ defmodule Repl.Executor do
     Logger.warn("Ipmlement scheduling on #{system}")
 
     Task.Supervisor.async(Repl.Spawner.TaskSupervisor, fn -> execute(expression, args) end,
-      timeout: :infinity
+      timeout: 30000
     )
   end
 
@@ -72,5 +73,24 @@ defmodule Repl.Executor do
         # IO.puts("exited: #{inspect c}")
         {"", c}
     end
+  end
+
+  defp create_response_error(event, room) do
+    plain = "> <#{event["sender"]}> #{event["content"]["body"]}\nError in nix expression"
+    # <mx-reply><blockquote><a
+    # href=\"https://matrix.to/#/!dwDnfJZEPulpEHXXHa:petabyte.dev/$vSvbCo0f0eWJL0lpU-NO_W_3TbV9Br-C-ksMl4J9-kw?via=petabyte.dev\">
+    # In reply to</a> <a href=\"https://matrix.to/#/@milan:petabyte.dev\">@milan:petabyte.dev</a><br><pre>
+    # <code class=\"language-nix\">builtins.getFlake \"git+https://github.com/torvalds/linux\"\n</code>
+    # </pre>\n</blockquote></mx-reply>denied
+    # todo: via
+    html = "<mx-reply>
+      <blockquote>
+        <a href=\"https://matrix.to/#/#{room}/#{event["event_id"]}?via=petabyte.dev\">In reply to</a>
+        <a href=\"https://matrix.to/#/#{event["sender"]}\">#{event["sender"]}</a>
+        #{event["content"]["formatted_body"]}
+      </blockquote></mx-reply>
+      Error in nix expression"
+    # TODO: m.relate
+    {plain, html}
   end
 end

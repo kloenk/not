@@ -27,25 +27,31 @@ defmodule Repl do
   defp parse(tesla) when tesla != nil do
     tesla =
       tesla.body["rooms"]["join"]
-      |> Enum.into([])
+      |> Enum.map(&Task.Supervisor.start_child(Repl.TaskSupervisor, fn -> parse_inner(&1) end))
 
-    Task.Supervisor.async_stream_nolink(Repl.TaskSupervisor, tesla, fn v -> parse_inner(v) end,
-      ordered: false
-    )
-    |> Enum.reduce(0, fn _x, _y -> nil end)
+    # |> Enum.into([])
+
+    # Task.Supervisor.async_stream_nolink(Repl.TaskSupervisor, tesla, fn v -> parse_inner(v) end,
+    #  ordered: false, timeout: :infinity
+    # )
+    # |> Enum.reduce(0, fn _x, _y -> nil end)
   end
 
   defp parse_inner({name, data}) when is_binary(name) and is_map(data) do
     events = data["timeline"]["events"]
     name = resolve_name(name)
 
-    Task.Supervisor.async_stream_nolink(
-      Repl.TaskSupervisor,
-      events,
-      fn v -> parse_event(v, name) end,
-      ordered: false
+    # Task.Supervisor.async_stream_nolink(
+    #  Repl.TaskSupervisor,
+    #  events,
+    #  fn v -> parse_event(v, name) end,
+    #  ordered: false, timeout: :infinity
+    # )
+    # |> Enum.reduce(0, fn _x, _y -> nil end)
+    events
+    |> Enum.map(
+      &Task.Supervisor.start_child(Repl.TaskSupervisor, fn -> parse_event(&1, name) end)
     )
-    |> Enum.reduce(0, fn _x, _y -> nil end)
   end
 
   defp parse_event(event, room) when is_map(event) do
@@ -53,7 +59,7 @@ defmodule Repl do
 
     if room_name != nil do
       case event["type"] do
-        "m.room.message" -> parse_message(event["content"], room)
+        "m.room.message" -> parse_message(event["content"], room, event)
         _ -> Logger.debug("unknown type: #{event["type"]}, room: #{room_name}")
       end
     else
@@ -61,7 +67,7 @@ defmodule Repl do
     end
   end
 
-  defp parse_message(content, room) when is_map(content) do
+  defp parse_message(content, room, event) when is_map(content) do
     {name, id} = room
     name = if name == "", do: id, else: name
 
@@ -71,12 +77,13 @@ defmodule Repl do
       {:ok, doc} = Floki.parse_document(content["formatted_body"])
 
       doc
+      |> Floki.filter_out("mx-reply")
       |> Floki.find("code")
-      |> Enum.map(&parse_code(&1, room))
+      |> Enum.map(&parse_code(&1, room, event))
     end
   end
 
-  defp parse_code(code, room) do
+  defp parse_code(code, room, event) do
     {_tag, attrs, content} = code
     {lang, system} = get_lang(attrs)
 
@@ -87,7 +94,7 @@ defmodule Repl do
         |> String.trim()
         |> String.split("\n")
         |> Enum.map(&parse_code(&1))
-        |> Repl.Spawner.compute(room, system)
+        |> Repl.Spawner.compute(room, system, event)
     end
   end
 

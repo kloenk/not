@@ -56,8 +56,8 @@ defmodule Repl.Spawner do
     GenServer.cast(__MODULE__, {:add_var, {name, value}, force})
   end
 
-  def compute(content, room, system) do
-    GenServer.cast(__MODULE__, {:compute, content, room, system})
+  def compute(content, room, system, event) do
+    GenServer.cast(__MODULE__, {:compute, content, room, system, event})
   end
 
   # MARK: - Handlers
@@ -84,7 +84,7 @@ defmodule Repl.Spawner do
   end
 
   @impl true
-  def handle_cast({:compute, content, room, system}, state) do
+  def handle_cast({:compute, content, room, system, event}, state) do
     {expr, state} = compute_inner(content, state)
 
     expr = gen_expr(expr, state)
@@ -92,7 +92,9 @@ defmodule Repl.Spawner do
     args = state[:args] |> Enum.join(" ")
 
     # Task.Supervisor.async_nolink(Repl.Spawner.TaskSupervisor, fn -> run(expr, args, room) end)
-    spawn(fn -> Executor.run(expr, args, room, system) end)
+    spawn(fn -> Executor.run(expr, args, room, system, event) end)
+
+    # Task.Supervisor.start_child(Repl.Spawner.TaskSupervisor, fn -> Executor.run(expr, args, room) end)
 
     {:noreply, state}
   end
