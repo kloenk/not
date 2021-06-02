@@ -105,6 +105,10 @@ defmodule Lib.Matrix.Server do
     GenServer.call(__MODULE__, {:get_rooms})
   end
 
+  def send_reply(room, message) do
+    GenServer.cast(__MODULE__, {:reply, room, message})
+  end
+
   def send_reply(room, message, html) do
     GenServer.cast(__MODULE__, {:reply, room, message, html})
   end
@@ -163,6 +167,24 @@ defmodule Lib.Matrix.Server do
       "body" => message,
       "format" => "org.matrix.custom.html",
       "formatted_body" => html,
+      "msgtype" => "m.notice"
+    }
+
+    # event.content = content
+    event = Map.put(event, :content, content)
+
+    Client.Request.send_room_event(state[:server], state[:token], event)
+    |> Client.do_request()
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:reply, room, message}, state) do
+    event = Client.RoomEvent.message(room, :text, message, UUID.uuid1())
+
+    content = %{
+      "body" => message,
       "msgtype" => "m.notice"
     }
 

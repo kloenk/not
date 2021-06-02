@@ -13,7 +13,8 @@ defmodule Bot.Application do
       Bot.Distri.Supervisor,
       {Lib.Matrix.Scraper, nil},
       {Lib.Matrix.Server, []},
-      Karma.Supervisor
+      Karma.Supervisor,
+      Repl.Supervisor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
